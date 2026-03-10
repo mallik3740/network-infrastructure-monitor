@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Network Infrastructure Monitor</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    header {
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 {
+      font-size: 20px;
+      color: #58a6ff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    header h1 span { font-size: 22px; }
+    .header-right {
+      font-size: 13px;
+      color: #8b949e;
+    }
+    #live-clock {
+      color: #58a6ff;
+      font-weight: 600;
+    }
+
+    /* MAIN LAYOUT */
+    main { padding: 24px 32px; max-width: 1200px; margin: 0 auto; }
+
+    /* STATS BAR */
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 18px 20px;
+      text-align: center;
+    }
+    .stat-card .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .stat-card .stat-label { font-size: 12px; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; }
+    .stat-up { color: #3fb950; }
+    .stat-down { color: #f85149; }
+    .stat-total { color: #58a6ff; }
+    .stat-avg { color: #d29922; }
+
+    /* SECTION TITLE */
+    .section-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+      margin-top: 8px;
+    }
+
+    /* HOST TABLE */
+    .table-wrap {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 28px;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: #1c2128; }
+    th {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 12px;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-weight: 600;
+    }
+    td {
+      padding: 13px 16px;
+      font-size: 14px;
+      border-top: 1px solid #21262d;
+    }
+    tr:hover td { background: #1c2128; }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .badge-up { background: #1a4a2e; color: #3fb950; border: 1px solid #3fb950; }
+    .badge-down { background: #3d1a1a; color: #f85149; border: 1px solid #f85149; }
+    .badge-checking { background: #2d2a1a; color: #d29922; border: 1px solid #d29922; }
+    .response-time { color: #58a6ff; font-weight: 600; }
+    .ip-addr { color: #8b949e; font-size: 13px; font-family: monospace; }
+
+    /* CONTROLS */
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+    .control-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .control-card h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e6edf3;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .input-row { display: flex; gap: 10px; }
+    input[type="text"] {
+      flex: 1;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 9px 14px;
+      color: #e6edf3;
+      font-size: 14px;
+      outline: none;
+    }
+    input[type="text"]:focus { border-color: #58a6ff; }
+    input[type="text"]::placeholder { color: #484f58; }
+    button {
+      background: #238636;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 9px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    button:hover { background: #2ea043; }
+    button.btn-blue { background: #1f6feb; }
+    button.btn-blue:hover { background: #388bfd; }
+    button.btn-refresh {
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #e6edf3;
+      margin-left: 10px;
+    }
+    button.btn-refresh:hover { background: #30363d; }
+
+    /* OUTPUT BOX */
+    .output-box {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 12px 14px;
+      font-family: monospace;
+      font-size: 13px;
+      color: #3fb950;
+      min-height: 80px;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 12px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .output-box.error { color: #f85149; }
+
+    /* LOG */
+    .log-box {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-family: monospace;
+      font-size: 13px;
+      max-height: 160px;
+      overflow-y: auto;
+    }
+    .log-entry { margin-bottom: 4px; }
+    .log-time { color: #8b949e; margin-right: 8px; }
+    .log-up { color: #3fb950; }
+    .log-down { color: #f85149; }
+
+    /* AUTO REFRESH */
+    .refresh-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .refresh-info { font-size: 13px; color: #8b949e; }
+    #countdown { color: #58a6ff; font-weight: 600; }
+
+    /* LOADING */
+    .loading { color: #d29922; font-size: 13px; }
+
+    @media (max-width: 768px) {
+      .stats-bar { grid-template-columns: repeat(2, 1fr); }
+      .controls { grid-template-columns: 1fr; }
+      main { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1><span>🌐</span> Network Infrastructure Monitor</h1>
+  <div class="header-right">
+    Last Updated: <span id="last-updated">--</span> &nbsp;|&nbsp; <span id="live-clock"></span>
+  </div>
+</header>
+
+<main>
+
+  <!-- STATS -->
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-value stat-total" id="stat-total">--</div>
+      <div class="stat-label">Total Hosts</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value stat-up" id="stat-up">--</div>
+      <div class="stat-label">Hosts Up</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value stat-down" id="stat-down">--</div>
+      <div class="stat-label">Hosts Down</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value stat-avg" id="stat-avg">--</div>
+      <div class="stat-label">Avg Response (ms)</div>
+    </div>
+  </div>
+
+  <!-- HOST TABLE -->
+  <div class="refresh-bar">
+    <div class="section-title" style="margin:0">📡 Host Status</div>
+    <div class="refresh-info">
+      Auto-refresh in <span id="countdown">30</span>s
+      <button class="btn-refresh" onclick="fetchAll()">↻ Refresh Now</button>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Host Name</th>
+          <th>IP / Address</th>
+          <th>Resolved IP</th>
+          <th>Status</th>
+          <th>Response Time</th>
+          <th>Last Checked</th>
+        </tr>
+      </thead>
+      <tbody id="host-table">
+        <tr><td colspan="6" class="loading" style="padding:20px; text-align:center;">⏳ Checking hosts...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+
+    <!-- Custom Ping -->
+    <div class="control-card">
+      <h3>🔍 Ping Custom Host</h3>
+      <div class="input-row">
+        <input type="text" id="custom-host" placeholder="Enter IP or hostname (e.g. 192.168.1.1)" />
+        <button onclick="pingCustom()">Ping</button>
+      </div>
+      <div class="output-box" id="ping-output">Results will appear here...</div>
+    </div>
+
+    <!-- Traceroute -->
+    <div class="control-card">
+      <h3>🗺️ Traceroute</h3>
+      <div class="input-row">
+        <input type="text" id="trace-host" placeholder="Enter IP or hostname" />
+        <button class="btn-blue" onclick="runTraceroute()">Trace</button>
+      </div>
+      <div class="output-box" id="trace-output">Traceroute output will appear here...</div>
+    </div>
+
+  </div>
+
+  <!-- LOG -->
+  <div class="section-title">📋 Activity Log</div>
+  <div class="log-box" id="activity-log">
+    <div class="log-entry"><span class="log-time">--:--:--</span> System started. Waiting for first scan...</div>
+  </div>
+
+</main>
+
+<script>
+  let countdown = 30;
+  let logs = [];
+
+  // Live clock
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('live-clock').textContent = now.toLocaleTimeString();
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // Add log entry
+  function addLog(message, type = '') {
+    const time = new Date().toLocaleTimeString();
+    logs.unshift({ time, message, type });
+    if (logs.length > 50) logs.pop();
+    renderLog();
+  }
+
+  function renderLog() {
+    const box = document.getElementById('activity-log');
+    box.innerHTML = logs.map(l =>
+      `<div class="log-entry"><span class="log-time">${l.time}</span><span class="${l.type === 'up' ? 'log-up' : l.type === 'down' ? 'log-down' : ''}">${l.message}</span></div>`
+    ).join('');
+  }
+
+  // Fetch all hosts
+  async function fetchAll() {
+    document.getElementById('host-table').innerHTML =
+      '<tr><td colspan="6" class="loading" style="padding:16px; text-align:center;">⏳ Scanning hosts...</td></tr>';
+    addLog('Starting network scan...');
+
+    try {
+      const res = await fetch('/api/ping-all');
+      const data = await res.json();
+      renderTable(data);
+      updateStats(data);
+      document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+      addLog(`Scan complete. ${data.filter(d => d.status === 'UP').length}/${data.length} hosts reachable.`);
+    } catch (e) {
+      document.getElementById('host-table').innerHTML =
+        '<tr><td colspan="6" style="color:#f85149; padding:16px; text-align:center;">❌ Failed to reach backend</td></tr>';
+      addLog('ERROR: Could not connect to backend.', 'down');
+    }
+  }
+
+  function renderTable(data) {
+    const tbody = document.getElementById('host-table');
+    tbody.innerHTML = data.map(h => `
+      <tr>
+        <td><strong>${h.name}</strong></td>
+        <td class="ip-addr">${h.host}</td>
+        <td class="ip-addr">${h.ip || '--'}</td>
+        <td><span class="badge ${h.status === 'UP' ? 'badge-up' : 'badge-down'}">${h.status}</span></td>
+        <td class="response-time">${h.response_time !== null ? h.response_time + ' ms' : '<span style="color:#484f58">N/A</span>'}</td>
+        <td style="color:#8b949e; font-size:13px;">${h.timestamp}</td>
+      </tr>
+    `).join('');
+
+    data.forEach(h => {
+      if (h.status === 'DOWN') addLog(`HOST DOWN: ${h.name} (${h.host}) — ${h.error || 'Unreachable'}`, 'down');
+      else addLog(`HOST UP: ${h.name} (${h.host}) — ${h.response_time ? h.response_time + 'ms' : 'OK'}`, 'up');
+    });
+  }
+
+  function updateStats(data) {
+    const up = data.filter(d => d.status === 'UP').length;
+    const down = data.filter(d => d.status === 'DOWN').length;
+    const times = data.filter(d => d.response_time !== null).map(d => d.response_time);
+    const avg = times.length ? (times.reduce((a, b) => a + b, 0) / times.length).toFixed(1) : '--';
+
+    document.getElementById('stat-total').textContent = data.length;
+    document.getElementById('stat-up').textContent = up;
+    document.getElementById('stat-down').textContent = down;
+    document.getElementById('stat-avg').textContent = avg !== '--' ? avg + ' ms' : '--';
+  }
+
+  // Custom ping
+  async function pingCustom() {
+    const host = document.getElementById('custom-host').value.trim();
+    if (!host) { alert('Please enter a host or IP address'); return; }
+
+    const box = document.getElementById('ping-output');
+    box.className = 'output-box';
+    box.textContent = `⏳ Pinging ${host}...`;
+    addLog(`Manual ping: ${host}`);
+
+    try {
+      const res = await fetch('/api/ping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ host })
+      });
+      const data = await res.json();
+      if (data.status === 'UP') {
+        box.textContent = `✅ HOST UP\n\nHost: ${data.host}\nResolved IP: ${data.ip}\nStatus: ${data.status}\nResponse Time: ${data.response_time !== null ? data.response_time + ' ms' : 'N/A'}\nChecked At: ${data.timestamp}`;
+        addLog(`Ping result: ${host} is UP (${data.response_time}ms)`, 'up');
+      } else {
+        box.className = 'output-box error';
+        box.textContent = `❌ HOST DOWN\n\nHost: ${data.host}\nStatus: ${data.status}\nError: ${data.error}\nChecked At: ${data.timestamp}`;
+        addLog(`Ping result: ${host} is DOWN`, 'down');
+      }
+    } catch (e) {
+      box.className = 'output-box error';
+      box.textContent = 'ERROR: Could not reach backend server.';
+    }
+  }
+
+  // Traceroute
+  async function runTraceroute() {
+    const host = document.getElementById('trace-host').value.trim();
+    if (!host) { alert('Please enter a host or IP address'); return; }
+
+    const box = document.getElementById('trace-output');
+    box.className = 'output-box';
+    box.textContent = `⏳ Running traceroute to ${host}...\nThis may take a few seconds...`;
+    addLog(`Traceroute started: ${host}`);
+
+    try {
+      const res = await fetch('/api/traceroute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ host })
+      });
+      const data = await res.json();
+      box.textContent = data.output || 'No output received.';
+      addLog(`Traceroute complete: ${host}`);
+    } catch (e) {
+      box.className = 'output-box error';
+      box.textContent = 'ERROR: Could not reach backend server.';
+    }
+  }
+
+  // Enter key support
+  document.getElementById('custom-host').addEventListener('keypress', e => { if (e.key === 'Enter') pingCustom(); });
+  document.getElementById('trace-host').addEventListener('keypress', e => { if (e.key === 'Enter') runTraceroute(); });
+
+  // Auto-refresh countdown
+  setInterval(() => {
+    countdown--;
+    document.getElementById('countdown').textContent = countdown;
+    if (countdown <= 0) {
+      countdown = 30;
+      fetchAll();
+    }
+  }, 1000);
+
+  // Initial load
+  fetchAll();
+</script>
+
+</body>
+</html>
