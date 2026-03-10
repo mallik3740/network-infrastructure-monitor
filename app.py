@@ -6,7 +6,6 @@ import datetime
 
 app = Flask(__name__)
 
-# Default hosts to monitor
 DEFAULT_HOSTS = [
     {"name": "Google DNS", "host": "8.8.8.8"},
     {"name": "Cloudflare DNS", "host": "1.1.1.1"},
@@ -16,26 +15,49 @@ DEFAULT_HOSTS = [
 ]
 
 def ping_host(host):
-    """Ping a host and return status, response time"""
     try:
-        param = "-n" if platform.system().lower() == "windows" else "-c"
-        command = ["ping", param, "1", "-W", "2", host]
-        result = subprocess.run(command, capture_output=True, text=True, timeout=5)
+        is_windows = platform.system().lower() == "windows"
 
-        if result.returncode == 0:
-            # Parse response time from output
-            output = result.stdout
-            time_ms = None
-            for line in output.split("\n"):
-                if "time=" in line:
-                    try:
-                        time_ms = float(line.split("time=")[1].split(" ")[0].replace("ms", ""))
-                    except:
-                        time_ms = None
-                    break
-            return {"status": "UP", "response_time": time_ms, "error": None}
+        if is_windows:
+            command = ["ping", "-n", "1", "-w", "2000", host]
         else:
-            return {"status": "DOWN", "response_time": None, "error": "Host unreachable"}
+            command = ["ping", "-c", "1", "-W", "2", host]
+
+        result = subprocess.run(command, capture_output=True, text=True, timeout=10)
+        output = result.stdout
+
+        if is_windows:
+            # Windows success check
+            if "TTL=" in output or "ttl=" in output:
+                # Parse time from Windows output: "time=12ms" or "time<1ms"
+                time_ms = None
+                for line in output.split("\n"):
+                    if "time" in line.lower() and ("ms" in line.lower()):
+                        try:
+                            if "time<" in line.lower():
+                                time_ms = 1.0
+                            elif "time=" in line.lower():
+                                part = line.lower().split("time=")[1]
+                                time_ms = float(part.split("ms")[0].strip())
+                        except:
+                            time_ms = None
+                        break
+                return {"status": "UP", "response_time": time_ms, "error": None}
+            else:
+                return {"status": "DOWN", "response_time": None, "error": "Host unreachable"}
+        else:
+            if result.returncode == 0:
+                time_ms = None
+                for line in output.split("\n"):
+                    if "time=" in line:
+                        try:
+                            time_ms = float(line.split("time=")[1].split(" ")[0].replace("ms", ""))
+                        except:
+                            time_ms = None
+                        break
+                return {"status": "UP", "response_time": time_ms, "error": None}
+            else:
+                return {"status": "DOWN", "response_time": None, "error": "Host unreachable"}
 
     except subprocess.TimeoutExpired:
         return {"status": "DOWN", "response_time": None, "error": "Timeout"}
@@ -44,23 +66,27 @@ def ping_host(host):
 
 
 def traceroute_host(host):
-    """Run traceroute on a host"""
     try:
-        param = "tracert" if platform.system().lower() == "windows" else "traceroute"
-        command = [param, "-m", "10", host]
-        result = subprocess.run(command, capture_output=True, text=True, timeout=15)
-        return result.stdout if result.stdout else "No output received"
+        is_windows = platform.system().lower() == "windows"
+
+        if is_windows:
+            command = ["tracert", "-h", "15", "-w", "1000", host]
+        else:
+            command = ["traceroute", "-m", "15", host]
+
+        result = subprocess.run(command, capture_output=True, text=True, timeout=30)
+        output = result.stdout
+        return output if output else "No output received"
+
     except subprocess.TimeoutExpired:
-        return "Traceroute timed out"
+        return "Traceroute timed out after 30 seconds"
     except Exception as e:
         return f"Error: {str(e)}"
 
 
 def resolve_dns(host):
-    """Resolve hostname to IP"""
     try:
-        ip = socket.gethostbyname(host)
-        return ip
+        return socket.gethostbyname(host)
     except:
         return "Unable to resolve"
 
